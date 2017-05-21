@@ -61,18 +61,23 @@
                             </tr>
                             </thead>
                             <tbody>
-                            {% for  CARD_ID, CARD_NUM, EXP_MONTH, EXP_YEAR in cards %}
-                                <tr>
-                                    <td>
-                                        <div class="radio">
-                                            <label><input type="radio" value="{{ CARD_ID }}"
-                                                          name="paymentCard" required>XXXX-XXXX-XXXX-{{ CARD_NUM|slice:"12:16" }}
-                                            </label>
-                                        </div>
-                                    </td>
-                                    <td>{{ EXP_MONTH }}/{{ EXP_YEAR }}</td>
-                                </tr>
-                            {% endfor %}
+                            {% ifequal cards None %}
+
+                            {% else %}
+                                {% for  CARD_ID, CARD_NUM, EXP_MONTH, EXP_YEAR in cards %}
+                                    <tr>
+                                        <td>
+                                            <div class="radio">
+                                                <label><input type="radio" value="{{ CARD_ID }}"
+                                                              name="paymentCard"
+                                                              required>XXXX-XXXX-XXXX-{{ CARD_NUM|slice:"12:16" }}
+                                                </label>
+                                            </div>
+                                        </td>
+                                        <td>{{ EXP_MONTH }}/{{ EXP_YEAR }}</td>
+                                    </tr>
+                                {% endfor %}
+                            {% endifequal %}
                             </tbody>
                         </table>
                         <h3>Billing Address</h3>
@@ -108,11 +113,14 @@
                             {% endfor %}
                             </tbody>
                         </table>
-                        {% if billAddress %}
+                        {% if billAddress and cards %}
                             <input type="submit" value="Place Order">
-                        {% else %}
+                        {% elif cards %}
                             <input type="submit" value="Place Order" disabled>
-                            <h3>Please add Billing Address before proceeding</h3>
+                            <h3>Please add <a href="{% url 'displayBillingAddress' %}">Billing Address</a> before proceeding</h3>
+                        {% elif billAddress %}
+                            <input type="submit" value="Place Order" disabled>
+                            <h3>Please add <a href="{% url 'displayCards' %}">Credit card </a>before proceeding</h3>
                         {% endif %}
                     </form>
                 </div>
