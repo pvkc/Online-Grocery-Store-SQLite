@@ -457,7 +457,7 @@ def updateLivingAddress(request):
         # curr.execute(SQLDeleteCustomerLives, (request.session['custId'], request.session['addrId'][request.POST['addrId']]))
         curr.execute(SQLUpdateCustomerLives,
                      (newAddrId, request.session['custId'], request.session['addrId'][request.POST['addrId']]))
-    except db.IntegrityError, e:
+    except db.IntegrityError as e:
         if ("%s" % e.message).startswith('ORA-00001:'):
             conn.rollback()
             conn.close()
@@ -643,12 +643,12 @@ def updateBillingAddress(request):
             request.POST['aptNo'].upper(), request.POST['city'].upper(), request.POST['state'].upper(),
             request.POST['zipCode']))
         newAddrId = curr.fetchall()[0][0]
-        print request.POST
+        print(request.POST)
         curr.execute(SQLUpdateCustomerBilledTo,
                      (newAddrId, request.session['custId'], request.session['billAddrId'][request.POST['addrId']]))
         # curr.execute(SQLInsertCustomerBilledTo, (request.session['custId'], newAddrId, request.session['billAddrId'][request.POST['addrId']]))
 
-    except db.IntegrityError, e:
+    except db.IntegrityError as e:
         if ("%s" % e.message).startswith('ORA-00001:'):
             conn.rollback()
             conn.close()
