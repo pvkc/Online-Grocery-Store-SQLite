@@ -1,4 +1,4 @@
-# README #
+ # README #
 
 ### What is this repository for? ###
 
@@ -8,7 +8,7 @@ The code is written in python 3.5.2 and uses django 1.11.1
 The Final commit of Master branch is the submission.
 
 
-##Dependency list:##
+## Dependency list ##
 
 Python 3.5.2
 
