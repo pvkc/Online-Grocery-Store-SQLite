@@ -3,7 +3,8 @@ from django.http import HttpResponse, Http404, HttpResponseNotFound
 from django.views.decorators.csrf import csrf_exempt
 from django.template.loader import render_to_string
 import datetime as dt
-import cx_Oracle as db
+#import cx_Oracle as db
+import sqlite3 as db
 import bcrypt as bc
 from hashlib import sha1
 
@@ -11,7 +12,7 @@ from hashlib import sha1
 # Create your views here.
 ERROR = -1
 
-PreventNull = lambda (check): '--' if check == '' else check
+PreventNull = lambda check: '--' if check == '' else check
 SQLSelectAddress = '''SELECT ADDR_ID 
 						  FROM ADDRESS
 						   WHERE STREET=:1 
@@ -34,9 +35,9 @@ SQLInsertCustomerLives = '''INSERT INTO CUSTOMER_LIVES(IS_DEFAULT,CUSTOMER_ID,AD
 
 def openDbConnection():
     try:
-        conn = db.connect('vpolavarapu1/CS425IIT9@fourier.cs.iit.edu:1521/orcl.cs.iit.edu')
-    except db.DatabaseError, exp:
-        print exp
+         conn = db.connect('OnlineStore.db')
+    except db.DatabaseError as exp:
+        print(exp)
         return ERROR
     return conn
 
@@ -68,8 +69,8 @@ def index(request):
                 listProduct.append(data)
 
 
-        except db.DatabaseError, exp:
-            print exp
+        except db.DatabaseError as exp:
+            print(exp)
             conn.close()
             return HttpResponseNotFound('Execution failed, Try Later')
 
@@ -83,8 +84,8 @@ def index(request):
             curr.execute(SQLSelectProductFromState, (state,))
             for data in curr.fetchall():
                 listProduct.append(data)
-        except db.DatabaseError, exp:
-            print exp
+        except db.DatabaseError as exp:
+            print(exp)
             conn.close()
             return HttpResponseNotFound('Execution failed, Try Later')
 
@@ -111,8 +112,8 @@ def submitSignUp(request):
     SQLInsertLogIn = '''INSERT INTO LOG_IN_DETAILS(EMAIL,LOG_IN_PASSWORD) VALUES(:1,:2)'''
     SQLInsertCustomer = 'INSERT INTO CUSTOMER(CUSTOMER_NAME,BALANCE,EMAIL) VALUES (:1,:2,:3)'
     SQLSelectCustomer = 'SELECT CUSTOMER_ID FROM CUSTOMER WHERE EMAIL =:1'
-    print request.POST['email']
-    print request.POST['password']
+    print(request.POST['email'])
+    print(request.POST['password'])
     hashed = bc.hashpw(request.POST['password'].encode('utf-8'), bc.gensalt())
 
     conn = openDbConnection()
@@ -134,10 +135,10 @@ def submitSignUp(request):
         addrId = curr.fetchall()
         curr.execute(SQLSelectCustomer, (request.POST['email'].lower(),))
         custId = curr.fetchall()
-        print custId, addrId
+        print(custId, addrId)
         curr.execute(SQLInsertCustomerLives, ('Y', custId[0][0], addrId[0][0]))
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         conn.rollback()
         conn.close()
         return HttpResponseNotFound('Execution Failed, Try Later')
@@ -159,8 +160,8 @@ def validatePasswd(request):
         curr = conn.cursor()
         curr.execute(SQLSelectLogIn, (request.POST['email'].lower(),))
         storedPasswd = curr.fetchall()
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         conn.close()
         return HttpResponseNotFound('Execution failed, Try Later')
 
@@ -169,8 +170,9 @@ def validatePasswd(request):
     else:
         return HttpResponse('No user found with credentials', status=422)
 
-    storedPasswd = str(storedPasswd)
-    print str(storedPasswd)
+   # storedPasswd = str(storedPasswd)
+   # print(str(storedPasswd))
+
     conn.close()
 
     if bc.hashpw(request.POST['password'].encode('utf-8'), storedPasswd) == storedPasswd:
@@ -197,8 +199,8 @@ def logIn(request):
         curr = conn.cursor()
         curr.execute(SQLSelectAllCustomer, (request.POST['email'].lower(),))
         custId, custName, custBalance, custEmail = curr.fetchall()[0]
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         conn.close()
         return HttpResponseNotFound('Execution failed, Try Later')
 
@@ -253,7 +255,7 @@ def profile(request):
         if livesAtAddrId:
             curr.execute(SQLSelectAddress, (livesAtAddrId,))
             for data in curr.fetchall():
-                print data
+                print(data)
                 context['livesAtStreet'] = data[0]
                 context['livesAtStreetName'] = data[1]
                 context['livesAtAptNum'] = data[2]
@@ -273,8 +275,8 @@ def profile(request):
 
         curr.execute(SQLSelectCustomerBalance,(request.session['custId'],))
         context['balance']=curr.fetchall()[0][0]
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         conn.close()
         return HttpResponseNotFound('Execution Failed, Try Later')
 
@@ -303,7 +305,7 @@ def displayAddress(request):
         for ix, data in enumerate(curr.fetchall()):
             livesAtAddrId, isDefaultAddr = data
 
-            hashedAddrId = sha1(str(livesAtAddrId)).hexdigest()
+            hashedAddrId = sha1(str(livesAtAddrId).encode('utf-8')).hexdigest()
             request.session['addrId'][hashedAddrId] = livesAtAddrId
 
             listAddress.append([hashedAddrId, isDefaultAddr])
@@ -311,10 +313,10 @@ def displayAddress(request):
             data = curr.fetchall()[0]
             listAddress[ix].extend([data[0], data[1], data[2], data[3], data[4], data[5]])
 
-        print listAddress
+        print(listAddress)
 
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         conn.close()
         return HttpResponseNotFound('Execution Failed, Try Later')
 
@@ -335,7 +337,7 @@ def addLivingAddress(request):
 
     SQLSelectCustomerLives = 'SELECT ADDR_ID FROM CUSTOMER_LIVES WHERE IS_DEFAULT = \'Y\' AND  CUSTOMER_ID = :1'
     SQLUpdateCustomerLives = 'UPDATE CUSTOMER_LIVES SET IS_DEFAULT =:1 WHERE CUSTOMER_ID = :2 AND ADDR_ID = :3'
-    print request.POST
+    print(request.POST)
     conn = openDbConnection()
 
     if conn == ERROR:
@@ -362,8 +364,8 @@ def addLivingAddress(request):
             curr.execute(SQLUpdateCustomerLives, ('N', request.session['custId'], oldAdrrdId))
             curr.execute(SQLInsertCustomerLives, ('Y', request.session['custId'], newAddrId[0][0]))
 
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         conn.rollback()
         conn.close()
         if str(exp).startswith('ORA-00001:'):
@@ -394,8 +396,8 @@ def setDefaultLiving(request):
         curr.execute(SQLUpdateCustomerLives, ('N', oldAddrId))
         curr.execute(SQLUpdateCustomerLives, ('Y', request.session['addrId'][request.POST['addrId']]))
 
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         conn.rollback()
         conn.close()
         return HttpResponseNotFound("Execution Failed, Try later")
@@ -417,8 +419,8 @@ def deleteLivingAddress(request):
         curr = conn.cursor()
         curr.execute(SQLDeleteCustomerLives,
                      (request.session['custId'], request.session['addrId'][request.POST['addrId']]))
-    except Exception, exp:
-        print exp
+    except Exception as exp:
+        print(exp)
         conn.rollback()
         conn.close()
         return HttpResponseNotFound("Execution Failed, Try later")
@@ -466,8 +468,8 @@ def updateLivingAddress(request):
             #             (request.session['custId'], request.session['addrId'][request.POST['addrId']]))
         else:
             raise e
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         conn.rollback()
         conn.close()
         return HttpResponseNotFound("Execution Failed, Try later")
@@ -495,7 +497,7 @@ def displayBillingAddress(request):
         for ix, data in enumerate(curr.fetchall()):
             BillToAddrId, isDefaultAddr = data
 
-            hashedAddrId = sha1(str(BillToAddrId)).hexdigest()
+            hashedAddrId = sha1(str(BillToAddrId).encode('utf-8')).hexdigest()
             request.session['billAddrId'][hashedAddrId] = BillToAddrId
 
             listAddress.append([hashedAddrId, isDefaultAddr])
@@ -503,10 +505,10 @@ def displayBillingAddress(request):
             data = curr.fetchall()[0]
             listAddress[ix].extend([data[0], data[1], data[2], data[3], data[4], data[5]])
 
-        print listAddress
+        print(listAddress)
 
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         return HttpResponseNotFound('Execution Failed, Try Later')
 
     request.session.modified = True
@@ -525,7 +527,7 @@ def addBillingAddress(request):
 
     SQLSelectCustomerBilledTo = 'SELECT ADDR_ID FROM CUSTOMER_BILLED_TO WHERE IS_DEFAULT = \'Y\' AND  CUSTOMER_ID = :1'
     SQLUpdateCustomerBilledTo = 'UPDATE CUSTOMER_BILLED_TO SET IS_DEFAULT =:1 WHERE CUSTOMER_ID = :2 AND ADDR_ID = :3'
-    print request.POST
+    print(request.POST)
     conn = openDbConnection()
 
     if conn == ERROR:
@@ -553,8 +555,8 @@ def addBillingAddress(request):
                 curr.execute(SQLUpdateCustomerBilledTo, ('N', request.session['custId'], oldAdrrdId[0][0]))
             curr.execute(SQLInsertCustomerBilledTo, ('Y', request.session['custId'], newAddrId[0][0]))
 
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         conn.rollback()
         conn.close()
         if str(exp).startswith('ORA-00001:'):
@@ -585,8 +587,8 @@ def setDefaultBilling(request):
             curr.execute(SQLUpdateCustomerBilledTo, ('N', oldAddrId[0][0]))
         curr.execute(SQLUpdateCustomerBilledTo, ('Y', request.session['billAddrId'][request.POST['addrId']]))
 
-    except Exception, exp:
-        print exp
+    except Exception as exp:
+        print(exp)
         conn.rollback()
         conn.close()
         return HttpResponseNotFound("Execution Failed, Try later")
@@ -608,8 +610,8 @@ def deleteBillingAddress(request):
         curr = conn.cursor()
         curr.execute(SQLDeleteCustomerBilledTo,
                      (request.session['custId'], request.session['billAddrId'][request.POST['addrId']]))
-    except Exception, exp:
-        print exp
+    except Exception as exp:
+        print(exp)
         conn.rollback()
         conn.close()
         return HttpResponseNotFound("Execution Failed, Try later")
@@ -657,8 +659,8 @@ def updateBillingAddress(request):
             #             (request.session['custId'], request.session['billAddrId'][request.POST['addrId']]))
         else:
             raise e
-    except Exception, exp:
-        print exp
+    except Exception as exp:
+        print(exp)
         conn.rollback()
         conn.close()
         return HttpResponseNotFound("Execution Failed, Try later")
@@ -686,7 +688,7 @@ def diplaycards(request):
         for ix, data in enumerate(curr.fetchall()):
             custId, cardId = data
 
-            hashedAddrId = sha1(str(cardId)).hexdigest()
+            hashedAddrId = sha1(str(cardId).encode()).hexdigest()
             request.session['cardId'][hashedAddrId] = cardId
 
             listCards.append([hashedAddrId])
@@ -694,10 +696,10 @@ def diplaycards(request):
             data = curr.fetchall()[0]
             listCards[ix].extend([data[0], data[1], data[2]])
 
-        print listCards
+        print(listCards)
 
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         return HttpResponseNotFound('Execution Failed, Try Later')
 
     request.session.modified = True
@@ -716,7 +718,7 @@ def addNewCard(request):
     SQLInsertCustomerCard = '''INSERT INTO CUSTOMER_HAS_CARD(CUSTOMER_ID, CARD_ID) VALUES (:1,:2)'''
 
     conn = openDbConnection()
-    print request.POST
+    print(request.POST)
     if conn == ERROR:
         return HttpResponseNotFound("DB down, Try Later")
 
@@ -729,8 +731,8 @@ def addNewCard(request):
         cardId = curr.fetchall()[0][0]
         curr.execute(SQLInsertCustomerCard, (request.session["custId"], cardId))
 
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         conn.rollback()
         conn.close()
         if str(exp).startswith('ORA-00001:'):
@@ -752,7 +754,7 @@ def updateCard(request):
     SQLUpdateCustomerCard = '''UPDATE CUSTOMER_HAS_CARD SET CARD_ID = :1 WHERE CUSTOMER_ID =:2 AND CARD_ID = :3 '''
 
     conn = openDbConnection()
-    print request.POST
+    print(request.POST)
     if conn == ERROR:
         return HttpResponseNotFound("DB down, Try Later")
 
@@ -766,8 +768,8 @@ def updateCard(request):
         curr.execute(SQLUpdateCustomerCard,
                      (cardId, request.session["custId"], request.session['cardId'][request.POST['cardId']]))
 
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         conn.rollback()
         conn.close()
         if str(exp).startswith('ORA-00001:'):
@@ -784,7 +786,7 @@ def updateCard(request):
 def deleteCard(request):
     SQLDeleteCustomerCard = 'DELETE FROM CUSTOMER_HAS_CARD WHERE CUSTOMER_ID =:1 AND CARD_ID =:2'
     conn = openDbConnection()
-    print request.POST
+    print(request.POST)
     if conn == ERROR:
         return HttpResponseNotFound("DB down, Try Later")
 
@@ -793,8 +795,8 @@ def deleteCard(request):
         curr.execute(SQLDeleteCustomerCard,
                      (request.session["custId"], request.session['cardId'][request.POST['cardId']]))
 
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         conn.rollback()
         conn.close()
         # raise
@@ -817,8 +819,8 @@ def validateEmail(request):
         curr = conn.cursor()
         curr.execute(SQLSelectCustomer, (request.POST['email'].lower(),))
         data = curr.fetchall()
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         conn.close()
         return HttpResponseNotFound('Execution Failed, Try Later')
 
@@ -850,8 +852,8 @@ def staffLogIn(request):
         curr = conn.cursor()
         curr.execute(SQLSelectStaff, (request.POST['staffId'],))
         staffId, staffName = curr.fetchall()[0]
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         conn.close()
         return HttpResponseNotFound('Execution Failed, Try Later')
 
@@ -878,13 +880,13 @@ def validateStaff(request):
             staffId, storedPasswd = data[0]
             storedPasswd = str(storedPasswd)
 
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         conn.close()
         return HttpResponseNotFound('Execution Failed, Try Later')
 
     conn.close()
-    if bc.hashpw(request.POST['password'].encode('utf-8'), storedPasswd) == storedPasswd:
+    if bc.hashpw(request.POST['password'].encode('utf-8'), storedPasswd.encode()) == storedPasswd.encode():
         return HttpResponse(status=200)
     else:
         return HttpResponse(status=422)
@@ -937,8 +939,8 @@ def staffHome(request):
             listPName.append(data)
 
 
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         conn.close()
         return HttpResponseNotFound('Execution Failed, Try Later')
 
@@ -960,7 +962,7 @@ def addProduct(request):
     SQLSelectProduct = 'SELECT PRODUCT_ID FROM PRODUCT WHERE PRODUCT_NAME=:1'
     SQLInsertProductPrice = '''INSERT INTO PRODUCT_PRICE(STATE_NAME, PRICE, PRICE_UNIT, PRODUCT_ID) VALUES(:1,:2,:3,:4)'''
 
-    print request.POST
+    print(request.POST)
 
     conn = openDbConnection()
     if conn == ERROR:
@@ -977,8 +979,8 @@ def addProduct(request):
 
         curr.execute(SQLInsertProductPrice,
                      (request.POST['pstate'], request.POST['pprice'], request.POST['priceunit'], productId))
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         if str(exp).startswith('ORA-00001:'):
             conn.close()
             return HttpResponse("Data Already Exists", status=422)
@@ -995,7 +997,7 @@ def updateProduct(request):
     SQLUpdateProduct = "UPDATE PRODUCT SET PRODUCT_NAME=:1, PRODUCT_CATEGORY=:2, PRODUCT_SIZE=:3, ADDITIONAL_INFO=:4, IMAGE_LOCATION=:5 WHERE PRODUCT_NAME=:1"
     SQLUpdateProductPrice = "UPDATE PRODUCT_PRICE SET PRICE=:1, PRICE_UNIT=:2, STATE_NAME=:3 WHERE STATE_NAME=:4 AND PRODUCT_ID=:5"
 
-    print request.POST
+    print(request.POST)
     conn = openDbConnection()
     if conn == ERROR:
         return HttpResponseNotFound("DB down, Try Later")
@@ -1009,8 +1011,8 @@ def updateProduct(request):
         curr.execute(SQLUpdateProductPrice,
                      (request.POST['pprice'], request.POST['priceunit'], request.POST['pstate'],
                       request.POST['oldPState'], request.POST['pId']))
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         if str(exp).startswith('ORA-00001:'):
             return HttpResponse("Data Already Exists", status=422)
         conn.rollback()
@@ -1032,7 +1034,7 @@ def deleteProduct(request):
                           NOT EXISTS(SELECT 1 FROM SUPPLIER_SELLS SS WHERE SS.PRODUCT_ID = P.PRODUCT_ID) AND
                           NOT EXISTS(SELECT 1 FROM ORDER_CONTAINS OC WHERE OC.PRODUCT_ID = P.PRODUCT_ID)'''
 
-    print request.POST
+    print(request.POST)
     conn = openDbConnection()
     if conn == ERROR:
         return HttpResponseNotFound("DB down, Try Later")
@@ -1042,8 +1044,8 @@ def deleteProduct(request):
                      (request.POST['pstate'], request.POST['pId']))
         curr.execute(SQLDeleteProduct, (request.POST['pId'],))
 
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         if str(exp).startswith('ORA-00001:'):
             return HttpResponse("Data Already Exists", status=422)
         conn.rollback()
@@ -1072,7 +1074,7 @@ def addStock(request):
     SQLInsertStockWHouse = '''INSERT INTO STOCK_IN_WAREHOUSE(NUMBER_OF_ITEMS, WAREHOUSE_ID, PRODUCT_ID)
                            SELECT :1,:2,:3 FROM DUAL'''
     SQLUpdateStockWHouse = '''UPDATE STOCK_IN_WAREHOUSE SET NUMBER_OF_ITEMS= NUMBER_OF_ITEMS +:1 WHERE PRODUCT_ID=:2 AND WAREHOUSE_ID=:3'''
-    print request.POST
+    print(request.POST)
     conn = openDbConnection()
     if conn == ERROR:
         return HttpResponseNotFound("DB down, Try Later")
@@ -1094,8 +1096,8 @@ def addStock(request):
 
         curr.execute(SQLUpdateStockWHouse,
                      (request.POST['quantity'], request.POST['pId'], request.POST['wId']))
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         conn.rollback()
         conn.close()
         return HttpResponseNotFound('Execution Failed, Try Later')
@@ -1103,8 +1105,8 @@ def addStock(request):
     try:
         curr.execute(SQLInsertStockWHouse, (request.POST['quantity'],request.POST['wId'],request.POST['pId']))
 
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         if str(exp).startswith('ORA-00001:'):
             pass
         else:
@@ -1140,8 +1142,8 @@ def searchProduct(request):
             listProduct.append(data)
 
 
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         conn.close()
         return HttpResponseNotFound('Execution failed, Try Later')
 
@@ -1175,8 +1177,8 @@ def addToCart(request):
         curr.execute(SQLUpdateCartContains,
                      (request.POST['quantity'], cartId, request.POST['pId']))
         curr.execute(SQLInsertCartContains, (request.POST['quantity'], cartId, request.POST['pId']))
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         conn.rollback()
         conn.close()
         return HttpResponseNotFound('Execution Failed, Try Later')
@@ -1236,8 +1238,8 @@ def displayShoppingCart(request):
             data = curr.fetchall()[0]
             listAddress[ix].extend(data)
 
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         conn.close()
         return HttpResponseNotFound('Execution failed, Try Later')
 
@@ -1252,7 +1254,7 @@ def displayShoppingCart(request):
 
 @csrf_exempt
 def deleteFromCart(request):
-    SQLDeleteCart= '''DELETE FROM CART_CONTAINS CC WHERE CC.PRODUCT_ID=:1
+    SQLDeleteCart= '''DELETE FROM CART_CONTAINS WHERE PRODUCT_ID=:1
                           AND CART_ID = (SELECT CART_ID FROM CART WHERE CUSTOMER_ID=:2)'''
 
     conn = openDbConnection()
@@ -1264,8 +1266,8 @@ def deleteFromCart(request):
     try:
         curr = conn.cursor()
         curr.execute(SQLDeleteCart, (request.POST['pId'],request.session['custId']))
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         conn.rollback()
         conn.close()
         return HttpResponseNotFound('Execution failed, Try Later')
@@ -1287,8 +1289,8 @@ def updateCart(request):
     try:
         curr = conn.cursor()
         curr.execute(SQLUpdateCart, (request.POST['quantity'],request.session['custId'],request.POST['pId']))
-    except db.DatabaseError, exp:
-        print exp
+    except db.DatabaseError as exp:
+        print(exp)
         conn.rollback()
         conn.close()
         return HttpResponseNotFound('Execution failed, Try Later')
@@ -1302,7 +1304,8 @@ def checkout(request):
 
 
 def placeOrder(request):
-    SQLSelectOrderSeq = '''SELECT ORDERS_SEQ.NEXTVAL FROM DUAL'''
+    SQLSelectOrderSeq = '''SELECT VALUE FROM ORDER_SEQ'''
+    SQLUpdateOrderSeq = '''UPDATE ORDER_SEQ SET VALUE = VALUE + 1'''
     SQLInsertOrders = '''INSERT INTO ORDERS(ORDER_ID,STATUS,ISSUED_DATE,CARD_ID,CUSTOMER_ID,BILL_ADDR_ID) VALUES (:1,:2,:3,:4,:5,:6)'''
     SQLInsertOrderContains = '''INSERT INTO ORDER_CONTAINS(QUANTITY, ORDER_ID, PRODUCT_ID)
                                 SELECT QUANTITY,:1,PRODUCT_ID FROM CART_CONTAINS
@@ -1353,7 +1356,7 @@ def placeOrder(request):
             pass
         else:
             conn.close()
-            HttpResponse("Sorry, we don't serve at your location")
+            return HttpResponse("Sorry, we don't serve at your location")
 
         curr.execute(SQLSelectCart,(request.session['custId'],state))
 
@@ -1369,6 +1372,7 @@ def placeOrder(request):
                 return HttpResponse('Product <strong>'+data[2]+'</strong> Out of stock, Cannot place order')
             curr.execute(SQLUpdateWHouse,(data[1], data_1[0][0], data[0]))
 
+        curr.execute(SQLUpdateOrderSeq)
         curr.execute(SQLSelectOrderSeq)
         orderId = curr.fetchall()[0][0]
 
@@ -1379,9 +1383,9 @@ def placeOrder(request):
         curr.execute(SQLDeleteCart,(request.session['custId'],))
 
 
-    except ValueError, exp:
+    except ValueError as exp:
         #db.DatabaseError ,exp:
-        print exp
+        print(exp)
         conn.rollback()
         conn.close()
         return HttpResponseNotFound('Execution failed, Try Later')
