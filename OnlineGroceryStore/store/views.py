@@ -1393,5 +1393,23 @@ def placeOrder(request):
     conn.commit()
     conn.close()
     html='''Order Placed,<a href="/">Click Here for Home Page<a>'''
-    print request.POST
+    print(request.POST)
     return HttpResponse(html)
+
+
+def autoFillSearch(request):
+    SQLSelectProduct = '''SELECT P.PRODUCT_NAME FROM PRODUCT P INNER JOIN PRODUCT_PRICE PP ON P.PRODUCT_ID = PP.PRODUCT_ID 
+                          WHERE LOWER(PRODUCT_NAME) LIKE (:1) AND PP.STATE_NAME = :2 LIMIT 10'''
+    conn = openDbConnection()
+    if conn == ERROR:
+        return HttpResponseNotFound
+    curr = conn.cursor()
+    curr.execute(SQLSelectProduct, (request.POST['searchText'].lower()+'%', request.POST['state']))
+    searchRes = []
+    jsonData = {}
+    for data in curr.fetchall():
+        searchRes.append(data[0])
+    conn.close()
+    jsonData['resp'] = searchRes
+    import json
+    return HttpResponse(json.dumps(jsonData), content_type="application/json")
