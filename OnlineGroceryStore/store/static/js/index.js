@@ -56,28 +56,30 @@ $('#searchProduct').click(function (e) {
     };
 
 
-    $.ajax({url: 'searchProduct',
-           type:'POST',
-           data:formData,
-           success:function (data) {
-                       // window.location = window.location.href;
-               var productDisplay = document.getElementById('productDisplay');
-               productDisplay.innerHTML = data;
-           },
+    $.ajax({
+        url: 'searchProduct',
+        type: 'POST',
+        data: formData,
+        success: function (data) {
+            // window.location = window.location.href;
+            var productDisplay = document.getElementById('productDisplay');
+            productDisplay.innerHTML = data;
+        },
 
-           error:function (XHR, textStatus, errorThrown) {
-                   productDisplay.innerHTML = "Something is wrong, try later."
-           }
-       })
+        error: function (XHR, textStatus, errorThrown) {
+            productDisplay.innerHTML = "Something is wrong, try later.";
+            return false;
+        }
+    })
 });
 
 function addToCart(reqFrom) {
-    if(reqFrom.parentNode.children.quantity.value < 0){
+    if (reqFrom.parentNode.children.quantity.value < 0) {
         //alert('Quantity must be +ve integer');
         reqFrom.parentNode.children.quantity.setCustomValidity('Quantity must be +ve integer');
         return false;
     }
-    else{
+    else {
         reqFrom.parentNode.children.quantity.setCustomValidity('');
     }
 
