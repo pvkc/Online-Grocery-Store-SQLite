@@ -14,8 +14,8 @@ function validateStaffId() {
         return false;
     }
     else{
-        var x = parseFloat(value);
-        if ((x | 0) === x){
+        var x = parseFloat(staffId.value);
+        if ((x | 0) !== x){
             staffId.setCustomValidity('Invalid StaffId');
             return false;
         }
