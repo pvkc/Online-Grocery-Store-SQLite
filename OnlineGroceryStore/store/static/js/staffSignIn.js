@@ -23,12 +23,12 @@ function validateStaffId() {
     }
 
     var request = new XMLHttpRequest();
-	request.open('POST','/staffValidate',false);
+	request.open('POST','/validateStaff',false);
 
 	request.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
 	request.send("staffId="+ staffId.value +'&' + 'password=' + passwd.value);
 
-	if (request.readyState == 4 && request.status != 200) {
+	if (request.readyState === 4 && request.status !== 200) {
             passwd.setCustomValidity('StaffId/Password not found');
             return false;
 		}
