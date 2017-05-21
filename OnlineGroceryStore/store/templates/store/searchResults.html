@@ -6,6 +6,9 @@
     </div>
 </div>
 <div class="row">
+{% if not indexListProduct %}
+    <h3>Sorry, we don't serve at your location</h3>
+{% endif %}
     {% for PRODUCT_ID, PRODUCT_NAME, PRODUCT_CATEGORY, PRODUCT_SIZE, ADDITIONAL_INFO, IMAGE_LOCATION, STATE_NAME, PRICE, PRICE_UNIT in indexListProduct %}
         <div class="col-md-4">
             <a><img src="{{ IMAGE_LOCATION }}"
