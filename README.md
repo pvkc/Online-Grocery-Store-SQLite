@@ -1,29 +1,26 @@
 # README #
 
 ### What is this repository for? ###
-This Repo holds all the Project work done as part of CS425.
 
-The code is written in python 2.7.12 and uses django 1.10
+This repository holds a Online grocery store with SQLite as the backend.
+
+The code is written in python 3.5.2 and uses django 1.11.1
 The Final commit of Master branch is the submission.
-
 
 
 ##Dependency list:##
 
-Python 2.7.12
+Python 3.5.2
 
 bcrypt==3.1.1
 
-Django==1.10.3
-
-cx-Oracle==5.1.2
-
+Django==1.11.1
 
 Please use FireFox for testing.
 
 Instructions for Running:
 ----------------------------
-cd cs425-f16-vpolavarapu1/OnlineGroceryStore/
+cd OnlineGroceryStore/
 
 python manage.py runserver
 
@@ -43,10 +40,7 @@ Folder Structure:
 ------------------
 'OnlineGroceryStore'             -- Folder has the runnable code.
 
-'Front-end'			 -- contains un-refined html(Not nedded by the program)
-
 'Relational Model'               -- contains the relational model diagram
 
 'ER-Model'			 -- contains the ER-model diagram
 
-'TescoAPI'			 -- API access to Tesco retail store(Irrelavent stuff)
