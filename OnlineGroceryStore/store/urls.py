@@ -38,6 +38,7 @@ urlpatterns = [url(r'^signIn$', views.signIn, name='signIn'),
                url(r'^logIn$', views.logIn, name='logIn'),
                url(r'staffLogin$', views.staffLogIn, name='staffLogIn'),
                url(r'searchProduct$', views.searchProduct, name='searchProduct'),
+               url(r'autoFillSearch$', views.autoFillSearch, name='autoFillSearch'),
                url(r'^placeOrder$', views.placeOrder, name='placeOrder'),
                url(r'^$', views.index, name='index'),
                ]
