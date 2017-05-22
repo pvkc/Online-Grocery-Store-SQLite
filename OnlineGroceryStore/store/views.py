@@ -3,10 +3,23 @@ from django.http import HttpResponse, Http404, HttpResponseNotFound
 from django.views.decorators.csrf import csrf_exempt
 from django.template.loader import render_to_string
 import datetime as dt
+import logging as lg
 #import cx_Oracle as db
 import sqlite3 as db
 import bcrypt as bc
 from hashlib import sha1
+import os
+
+format_ = lg.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+
+# logger for django
+django_log = lg.getLogger('django_log')
+django_log.setLevel(lg.INFO)
+s_log_f_name = '{}{}{}'.format('django_', os.getpid(), '.log')
+django_fh = lg.FileHandler(s_log_f_name, encoding='utf-8')
+django_fh.setFormatter(format_)
+django_log.addHandler(django_fh)
+
 
 # from .forms import SignInForm
 # Create your views here.
@@ -37,7 +50,7 @@ def openDbConnection():
     try:
          conn = db.connect('OnlineStore.db')
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         return ERROR
     return conn
 
@@ -70,7 +83,7 @@ def index(request):
 
 
         except db.DatabaseError as exp:
-            print(exp)
+            django_log.critical(exp)
             conn.close()
             return HttpResponseNotFound('Execution failed, Try Later')
 
@@ -85,7 +98,7 @@ def index(request):
             for data in curr.fetchall():
                 listProduct.append(data)
         except db.DatabaseError as exp:
-            print(exp)
+            django_log.critical(exp)
             conn.close()
             return HttpResponseNotFound('Execution failed, Try Later')
 
@@ -112,8 +125,8 @@ def submitSignUp(request):
     SQLInsertLogIn = '''INSERT INTO LOG_IN_DETAILS(EMAIL,LOG_IN_PASSWORD) VALUES(:1,:2)'''
     SQLInsertCustomer = 'INSERT INTO CUSTOMER(CUSTOMER_NAME,BALANCE,EMAIL) VALUES (:1,:2,:3)'
     SQLSelectCustomer = 'SELECT CUSTOMER_ID FROM CUSTOMER WHERE EMAIL =:1'
-    print(request.POST['email'])
-    print(request.POST['password'])
+    django_log.debug(request.POST['email'])
+    django_log.debug(request.POST['password'])
     hashed = bc.hashpw(request.POST['password'].encode('utf-8'), bc.gensalt())
 
     conn = openDbConnection()
@@ -135,10 +148,10 @@ def submitSignUp(request):
         addrId = curr.fetchall()
         curr.execute(SQLSelectCustomer, (request.POST['email'].lower(),))
         custId = curr.fetchall()
-        print(custId, addrId)
+        django_log.debug(custId, addrId)
         curr.execute(SQLInsertCustomerLives, ('Y', custId[0][0], addrId[0][0]))
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         conn.rollback()
         conn.close()
         return HttpResponseNotFound('Execution Failed, Try Later')
@@ -161,7 +174,7 @@ def validatePasswd(request):
         curr.execute(SQLSelectLogIn, (request.POST['email'].lower(),))
         storedPasswd = curr.fetchall()
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.debug(exp)
         conn.close()
         return HttpResponseNotFound('Execution failed, Try Later')
 
@@ -200,7 +213,7 @@ def logIn(request):
         curr.execute(SQLSelectAllCustomer, (request.POST['email'].lower(),))
         custId, custName, custBalance, custEmail = curr.fetchall()[0]
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.debug(exp)
         conn.close()
         return HttpResponseNotFound('Execution failed, Try Later')
 
@@ -255,7 +268,7 @@ def profile(request):
         if livesAtAddrId:
             curr.execute(SQLSelectAddress, (livesAtAddrId,))
             for data in curr.fetchall():
-                print(data)
+                django_log.debug(data)
                 context['livesAtStreet'] = data[0]
                 context['livesAtStreetName'] = data[1]
                 context['livesAtAptNum'] = data[2]
@@ -276,7 +289,7 @@ def profile(request):
         curr.execute(SQLSelectCustomerBalance,(request.session['custId'],))
         context['balance']=curr.fetchall()[0][0]
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         conn.close()
         return HttpResponseNotFound('Execution Failed, Try Later')
 
@@ -313,10 +326,10 @@ def displayAddress(request):
             data = curr.fetchall()[0]
             listAddress[ix].extend([data[0], data[1], data[2], data[3], data[4], data[5]])
 
-        print(listAddress)
+        django_log.debug(listAddress)
 
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         conn.close()
         return HttpResponseNotFound('Execution Failed, Try Later')
 
@@ -337,7 +350,7 @@ def addLivingAddress(request):
 
     SQLSelectCustomerLives = 'SELECT ADDR_ID FROM CUSTOMER_LIVES WHERE IS_DEFAULT = \'Y\' AND  CUSTOMER_ID = :1'
     SQLUpdateCustomerLives = 'UPDATE CUSTOMER_LIVES SET IS_DEFAULT =:1 WHERE CUSTOMER_ID = :2 AND ADDR_ID = :3'
-    print(request.POST)
+    django_log.debug(request.POST)
     conn = openDbConnection()
 
     if conn == ERROR:
@@ -365,7 +378,7 @@ def addLivingAddress(request):
             curr.execute(SQLInsertCustomerLives, ('Y', request.session['custId'], newAddrId[0][0]))
 
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         conn.rollback()
         conn.close()
         if str(exp).startswith('ORA-00001:'):
@@ -397,7 +410,7 @@ def setDefaultLiving(request):
         curr.execute(SQLUpdateCustomerLives, ('Y', request.session['addrId'][request.POST['addrId']]))
 
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         conn.rollback()
         conn.close()
         return HttpResponseNotFound("Execution Failed, Try later")
@@ -420,7 +433,7 @@ def deleteLivingAddress(request):
         curr.execute(SQLDeleteCustomerLives,
                      (request.session['custId'], request.session['addrId'][request.POST['addrId']]))
     except Exception as exp:
-        print(exp)
+        django_log.critical(exp)
         conn.rollback()
         conn.close()
         return HttpResponseNotFound("Execution Failed, Try later")
@@ -469,7 +482,7 @@ def updateLivingAddress(request):
         else:
             raise e
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         conn.rollback()
         conn.close()
         return HttpResponseNotFound("Execution Failed, Try later")
@@ -505,10 +518,10 @@ def displayBillingAddress(request):
             data = curr.fetchall()[0]
             listAddress[ix].extend([data[0], data[1], data[2], data[3], data[4], data[5]])
 
-        print(listAddress)
+        django_log.debug(listAddress)
 
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         return HttpResponseNotFound('Execution Failed, Try Later')
 
     request.session.modified = True
@@ -527,7 +540,7 @@ def addBillingAddress(request):
 
     SQLSelectCustomerBilledTo = 'SELECT ADDR_ID FROM CUSTOMER_BILLED_TO WHERE IS_DEFAULT = \'Y\' AND  CUSTOMER_ID = :1'
     SQLUpdateCustomerBilledTo = 'UPDATE CUSTOMER_BILLED_TO SET IS_DEFAULT =:1 WHERE CUSTOMER_ID = :2 AND ADDR_ID = :3'
-    print(request.POST)
+    django_log.debug(request.POST)
     conn = openDbConnection()
 
     if conn == ERROR:
@@ -556,7 +569,7 @@ def addBillingAddress(request):
             curr.execute(SQLInsertCustomerBilledTo, ('Y', request.session['custId'], newAddrId[0][0]))
 
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         conn.rollback()
         conn.close()
         if str(exp).startswith('ORA-00001:'):
@@ -588,7 +601,7 @@ def setDefaultBilling(request):
         curr.execute(SQLUpdateCustomerBilledTo, ('Y', request.session['billAddrId'][request.POST['addrId']]))
 
     except Exception as exp:
-        print(exp)
+        django_log.critical(exp)
         conn.rollback()
         conn.close()
         return HttpResponseNotFound("Execution Failed, Try later")
@@ -611,7 +624,7 @@ def deleteBillingAddress(request):
         curr.execute(SQLDeleteCustomerBilledTo,
                      (request.session['custId'], request.session['billAddrId'][request.POST['addrId']]))
     except Exception as exp:
-        print(exp)
+        django_log.critical(exp)
         conn.rollback()
         conn.close()
         return HttpResponseNotFound("Execution Failed, Try later")
@@ -643,7 +656,7 @@ def updateBillingAddress(request):
             request.POST['aptNo'].upper(), request.POST['city'].upper(), request.POST['state'].upper(),
             request.POST['zipCode']))
         newAddrId = curr.fetchall()[0][0]
-        print(request.POST)
+        django_log.debug(request.POST)
         curr.execute(SQLUpdateCustomerBilledTo,
                      (newAddrId, request.session['custId'], request.session['billAddrId'][request.POST['addrId']]))
         # curr.execute(SQLInsertCustomerBilledTo, (request.session['custId'], newAddrId, request.session['billAddrId'][request.POST['addrId']]))
@@ -660,7 +673,7 @@ def updateBillingAddress(request):
         else:
             raise e
     except Exception as exp:
-        print(exp)
+        django_log.critical(exp)
         conn.rollback()
         conn.close()
         return HttpResponseNotFound("Execution Failed, Try later")
@@ -696,10 +709,10 @@ def diplaycards(request):
             data = curr.fetchall()[0]
             listCards[ix].extend([data[0], data[1], data[2]])
 
-        print(listCards)
+        django_log.debug(listCards)
 
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         return HttpResponseNotFound('Execution Failed, Try Later')
 
     request.session.modified = True
@@ -718,7 +731,7 @@ def addNewCard(request):
     SQLInsertCustomerCard = '''INSERT INTO CUSTOMER_HAS_CARD(CUSTOMER_ID, CARD_ID) VALUES (:1,:2)'''
 
     conn = openDbConnection()
-    print(request.POST)
+    django_log.debug(request.POST)
     if conn == ERROR:
         return HttpResponseNotFound("DB down, Try Later")
 
@@ -732,7 +745,7 @@ def addNewCard(request):
         curr.execute(SQLInsertCustomerCard, (request.session["custId"], cardId))
 
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         conn.rollback()
         conn.close()
         if str(exp).startswith('ORA-00001:'):
@@ -754,7 +767,7 @@ def updateCard(request):
     SQLUpdateCustomerCard = '''UPDATE CUSTOMER_HAS_CARD SET CARD_ID = :1 WHERE CUSTOMER_ID =:2 AND CARD_ID = :3 '''
 
     conn = openDbConnection()
-    print(request.POST)
+    django_log.debug(request.POST)
     if conn == ERROR:
         return HttpResponseNotFound("DB down, Try Later")
 
@@ -769,7 +782,7 @@ def updateCard(request):
                      (cardId, request.session["custId"], request.session['cardId'][request.POST['cardId']]))
 
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         conn.rollback()
         conn.close()
         if str(exp).startswith('ORA-00001:'):
@@ -786,7 +799,7 @@ def updateCard(request):
 def deleteCard(request):
     SQLDeleteCustomerCard = 'DELETE FROM CUSTOMER_HAS_CARD WHERE CUSTOMER_ID =:1 AND CARD_ID =:2'
     conn = openDbConnection()
-    print(request.POST)
+    django_log.debug(request.POST)
     if conn == ERROR:
         return HttpResponseNotFound("DB down, Try Later")
 
@@ -796,7 +809,7 @@ def deleteCard(request):
                      (request.session["custId"], request.session['cardId'][request.POST['cardId']]))
 
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         conn.rollback()
         conn.close()
         # raise
@@ -820,7 +833,7 @@ def validateEmail(request):
         curr.execute(SQLSelectCustomer, (request.POST['email'].lower(),))
         data = curr.fetchall()
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         conn.close()
         return HttpResponseNotFound('Execution Failed, Try Later')
 
@@ -853,7 +866,7 @@ def staffLogIn(request):
         curr.execute(SQLSelectStaff, (request.POST['staffId'],))
         staffId, staffName = curr.fetchall()[0]
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         conn.close()
         return HttpResponseNotFound('Execution Failed, Try Later')
 
@@ -881,7 +894,7 @@ def validateStaff(request):
             storedPasswd = str(storedPasswd)
 
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         conn.close()
         return HttpResponseNotFound('Execution Failed, Try Later')
 
@@ -940,7 +953,7 @@ def staffHome(request):
 
 
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         conn.close()
         return HttpResponseNotFound('Execution Failed, Try Later')
 
@@ -962,7 +975,7 @@ def addProduct(request):
     SQLSelectProduct = 'SELECT PRODUCT_ID FROM PRODUCT WHERE PRODUCT_NAME=:1'
     SQLInsertProductPrice = '''INSERT INTO PRODUCT_PRICE(STATE_NAME, PRICE, PRICE_UNIT, PRODUCT_ID) VALUES(:1,:2,:3,:4)'''
 
-    print(request.POST)
+    django_log.debug(request.POST)
 
     conn = openDbConnection()
     if conn == ERROR:
@@ -980,7 +993,7 @@ def addProduct(request):
         curr.execute(SQLInsertProductPrice,
                      (request.POST['pstate'], request.POST['pprice'], request.POST['priceunit'], productId))
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         if str(exp).startswith('ORA-00001:'):
             conn.close()
             return HttpResponse("Data Already Exists", status=422)
@@ -997,7 +1010,7 @@ def updateProduct(request):
     SQLUpdateProduct = "UPDATE PRODUCT SET PRODUCT_NAME=:1, PRODUCT_CATEGORY=:2, PRODUCT_SIZE=:3, ADDITIONAL_INFO=:4, IMAGE_LOCATION=:5 WHERE PRODUCT_NAME=:1"
     SQLUpdateProductPrice = "UPDATE PRODUCT_PRICE SET PRICE=:1, PRICE_UNIT=:2, STATE_NAME=:3 WHERE STATE_NAME=:4 AND PRODUCT_ID=:5"
 
-    print(request.POST)
+    django_log.debug(request.POST)
     conn = openDbConnection()
     if conn == ERROR:
         return HttpResponseNotFound("DB down, Try Later")
@@ -1012,7 +1025,7 @@ def updateProduct(request):
                      (request.POST['pprice'], request.POST['priceunit'], request.POST['pstate'],
                       request.POST['oldPState'], request.POST['pId']))
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         if str(exp).startswith('ORA-00001:'):
             return HttpResponse("Data Already Exists", status=422)
         conn.rollback()
@@ -1034,7 +1047,7 @@ def deleteProduct(request):
                           NOT EXISTS(SELECT 1 FROM SUPPLIER_SELLS SS WHERE SS.PRODUCT_ID = P.PRODUCT_ID) AND
                           NOT EXISTS(SELECT 1 FROM ORDER_CONTAINS OC WHERE OC.PRODUCT_ID = P.PRODUCT_ID)'''
 
-    print(request.POST)
+    django_log.debug(request.POST)
     conn = openDbConnection()
     if conn == ERROR:
         return HttpResponseNotFound("DB down, Try Later")
@@ -1045,7 +1058,7 @@ def deleteProduct(request):
         curr.execute(SQLDeleteProduct, (request.POST['pId'],))
 
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         if str(exp).startswith('ORA-00001:'):
             return HttpResponse("Data Already Exists", status=422)
         conn.rollback()
@@ -1074,7 +1087,7 @@ def addStock(request):
     SQLInsertStockWHouse = '''INSERT INTO STOCK_IN_WAREHOUSE(NUMBER_OF_ITEMS, WAREHOUSE_ID, PRODUCT_ID)
                            SELECT :1,:2,:3 FROM DUAL'''
     SQLUpdateStockWHouse = '''UPDATE STOCK_IN_WAREHOUSE SET NUMBER_OF_ITEMS= NUMBER_OF_ITEMS +:1 WHERE PRODUCT_ID=:2 AND WAREHOUSE_ID=:3'''
-    print(request.POST)
+    django_log.debug(request.POST)
     conn = openDbConnection()
     if conn == ERROR:
         return HttpResponseNotFound("DB down, Try Later")
@@ -1097,7 +1110,7 @@ def addStock(request):
         curr.execute(SQLUpdateStockWHouse,
                      (request.POST['quantity'], request.POST['pId'], request.POST['wId']))
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         conn.rollback()
         conn.close()
         return HttpResponseNotFound('Execution Failed, Try Later')
@@ -1106,7 +1119,7 @@ def addStock(request):
         curr.execute(SQLInsertStockWHouse, (request.POST['quantity'],request.POST['wId'],request.POST['pId']))
 
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         if str(exp).startswith('ORA-00001:'):
             pass
         else:
@@ -1143,7 +1156,7 @@ def searchProduct(request):
 
 
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         conn.close()
         return HttpResponseNotFound('Execution failed, Try Later')
 
@@ -1178,7 +1191,7 @@ def addToCart(request):
                      (request.POST['quantity'], cartId, request.POST['pId']))
         curr.execute(SQLInsertCartContains, (request.POST['quantity'], cartId, request.POST['pId']))
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         conn.rollback()
         conn.close()
         return HttpResponseNotFound('Execution Failed, Try Later')
@@ -1239,7 +1252,7 @@ def displayShoppingCart(request):
             listAddress[ix].extend(data)
 
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         conn.close()
         return HttpResponseNotFound('Execution failed, Try Later')
 
@@ -1267,7 +1280,7 @@ def deleteFromCart(request):
         curr = conn.cursor()
         curr.execute(SQLDeleteCart, (request.POST['pId'],request.session['custId']))
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         conn.rollback()
         conn.close()
         return HttpResponseNotFound('Execution failed, Try Later')
@@ -1290,7 +1303,7 @@ def updateCart(request):
         curr = conn.cursor()
         curr.execute(SQLUpdateCart, (request.POST['quantity'],request.session['custId'],request.POST['pId']))
     except db.DatabaseError as exp:
-        print(exp)
+        django_log.critical(exp)
         conn.rollback()
         conn.close()
         return HttpResponseNotFound('Execution failed, Try Later')
@@ -1385,7 +1398,7 @@ def placeOrder(request):
 
     except ValueError as exp:
         #db.DatabaseError ,exp:
-        print(exp)
+        django_log.critical(exp)
         conn.rollback()
         conn.close()
         return HttpResponseNotFound('Execution failed, Try Later')
@@ -1393,7 +1406,7 @@ def placeOrder(request):
     conn.commit()
     conn.close()
     html='''Order Placed,<a href="/">Click Here for Home Page<a>'''
-    print(request.POST)
+    django_log.debug(request.POST)
     return HttpResponse(html)
 
 
